@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+import importlib.util
 
 def limpar_tela():
     """Limpa a tela do terminal"""
@@ -50,21 +51,62 @@ def executar_script(nome_script):
         print(f"\n🚀 Iniciando {nome_script}...")
         print("-" * 40)
         
-        # Executa o script
-        resultado = subprocess.run([sys.executable, nome_script], 
-                                 capture_output=False, 
-                                 text=True)
+        # Verifica se está executando como executável (PyInstaller)
+        if getattr(sys, 'frozen', False):
+            # Executando como executável - importa e executa diretamente
+            nome_modulo = nome_script.replace('.py', '')
+            
+            try:
+                # Tenta importar o módulo
+                if nome_modulo == 'add_automation':
+                    import add_automation
+                    if hasattr(add_automation, 'main'):
+                        add_automation.main()
+                    else:
+                        # Se não tem função main, executa o código principal
+                        exec(open(nome_script).read())
+                        
+                elif nome_modulo == 'remove_automation':
+                    import remove_automation
+                    if hasattr(remove_automation, 'main'):
+                        remove_automation.main()
+                    else:
+                        exec(open(nome_script).read())
+                        
+                elif nome_modulo == 'billing_automation':
+                    import billing_automation
+                    if hasattr(billing_automation, 'main'):
+                        billing_automation.main()
+                    else:
+                        exec(open(nome_script).read())
+                        
+                print(f"✅ {nome_script} executado com sucesso!")
+                
+            except ImportError:
+                # Se não conseguir importar, tenta executar como arquivo
+                print(f"⚠️  Importação falhou, tentando execução direta...")
+                exec(open(nome_script).read())
+                print(f"✅ {nome_script} executado com sucesso!")
+                
+        else:
+            # Executando como script Python normal - usa subprocess
+            resultado = subprocess.run([sys.executable, nome_script], 
+                                     capture_output=False, 
+                                     text=True)
+            
+            if resultado.returncode == 0:
+                print(f"✅ {nome_script} executado com sucesso!")
+            else:
+                print(f"❌ Erro ao executar {nome_script}")
         
         print("-" * 40)
-        if resultado.returncode == 0:
-            print(f"✅ {nome_script} executado com sucesso!")
-        else:
-            print(f"❌ Erro ao executar {nome_script}")
             
     except FileNotFoundError:
         print(f"❌ Arquivo {nome_script} não encontrado!")
+        print("💡 Certifique-se de que o arquivo está na mesma pasta")
     except Exception as e:
         print(f"❌ Erro inesperado: {str(e)}")
+        print(f"💡 Detalhes do erro: {type(e).__name__}")
     
     input("\nPressione ENTER para continuar...")
 

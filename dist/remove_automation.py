@@ -46,6 +46,8 @@ class CarRemovalAutomation:
         
         self.wait = WebDriverWait(self.driver, 10)
         self.driver.maximize_window()
+        self.driver.get("https://live.mzoneweb.net/mzonex/maintenance/vehiclegroups")
+
     
     def inserir_chassis_terminal(self):
         """Permite inserir chassis diretamente no terminal"""
@@ -448,7 +450,7 @@ class CarRemovalAutomation:
             campo_pesquisa_chassi.send_keys(chassi)
             
             # SELETOR 6: Aguardar carregamento automático da pesquisa
-            time.sleep(1)  # Delay para pesquisa automática
+            time.sleep(1.8)  # Delay para pesquisa automática
             
             # Delay adicional para carregar completamente o resultado
             time.sleep(0.5)
@@ -669,6 +671,11 @@ class CarRemovalAutomation:
 
 
 # Uso
-if __name__ == "__main__":
+
+def main():
+    """Função principal da automação"""
     automacao = CarRemovalAutomation()
     automacao.executar()
+
+if __name__ == '__main__':
+    main()

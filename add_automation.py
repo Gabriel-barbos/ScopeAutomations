@@ -47,9 +47,7 @@ class CarAdditionAutomation:
         
         self.wait = WebDriverWait(self.driver, 10)
         self.driver.maximize_window()
-
         self.driver.get("https://live.mzoneweb.net/mzonex/maintenance/vehiclegroups")
-
     
     def inserir_chassis_terminal(self):
         """Permite inserir chassis diretamente no terminal"""
@@ -124,9 +122,9 @@ class CarAdditionAutomation:
             else:
                 print("❌ Nome do grupo não pode estar vazio")
     
-    def fazer_login_e_navegar(self):
+    def fazer_login_inicial(self):
         """
-        Aguarda o usuário fazer login manualmente e navegar até a página de grupos
+        Aguarda o usuário fazer login manualmente na primeira vez
         """
         print("\n" + "="*60)
         print("🔐 LOGIN MANUAL NECESSÁRIO")
@@ -145,41 +143,94 @@ class CarAdditionAutomation:
         print("✅ Continuando com a automação...")
         time.sleep(2)
     
-    def pesquisar_grupo_e_editar(self):
-        """Pesquisa o grupo específico e clica em editar"""
+    def recarregar_pagina(self):
+        """Recarrega a página e aguarda o carregamento"""
         try:
-            # SELETOR 1: Campo de pesquisa de grupos
+            print("🔄 Recarregando página...")
+            self.driver.refresh()
+            
+            # Aguardar página carregar completamente
+            time.sleep(9)
+            
+            # Aguardar overlay desaparecer (se existir)
+            try:
+                WebDriverWait(self.driver, 15).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.form-overlay.ng-star-inserted.visible"))
+                )
+            except TimeoutException:
+                pass
+            
+            print("✅ Página recarregada com sucesso")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao recarregar página: {e}")
+            return False
+
+    def pesquisar_grupo(self):
+        """Pesquisa o grupo específico na lista"""
+        try:
+            print(f"🔍 Pesquisando grupo '{self.nome_grupo}'...")
+            
+            # Campo de pesquisa de grupos
             campo_pesquisa_grupo = self.wait.until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "input[type='search'][placeholder='Pesquisar']"))
             )
             
             # Limpar e pesquisar o grupo
             campo_pesquisa_grupo.clear()
+            time.sleep(0.5)
             campo_pesquisa_grupo.send_keys(self.nome_grupo)
             
-            # SELETOR 2: Aguardar carregamento automático da pesquisa
-            time.sleep(2)  # Delay para pesquisa automática
+            # Aguardar carregamento automático da pesquisa
+            time.sleep(2)
             
-            # SELETOR 3: Verificar se o grupo foi encontrado
+            # Verificar se o grupo foi encontrado
             grupo_encontrado = self.wait.until(
                 EC.presence_of_element_located((By.XPATH, f"//div[contains(@class, 'wj-cell') and contains(text(), '{self.nome_grupo}')]"))
             )
             self.logger.info(f"Grupo '{self.nome_grupo}' encontrado")
+            return True
             
-            # SELETOR 4: Botão editar grupo (botão com ícone lápis)
+        except TimeoutException:
+            self.logger.error(f"Grupo '{self.nome_grupo}' não foi encontrado na pesquisa")
+            return False
+        except Exception as e:
+            self.logger.error(f"Erro ao pesquisar grupo: {e}")
+            return False
+
+    def clicar_editar_grupo(self):
+        """Clica no botão de editar do grupo"""
+        try:
+            print("✏️ Clicando em editar grupo...")
+            
+            # Botão editar grupo (botão com ícone lápis)
             botao_editar = self.wait.until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, "button.button.btn-mz-grid[title='Editar grupo de veículos'] i.mz7-pencil"))
             )
             
-            # Clicar no botão (clica no elemento pai se necessário)
+            time.sleep(1)
+            
+            # Verificar se não há overlay bloqueando
+            try:
+                overlay_presente = self.driver.find_element(By.CSS_SELECTOR, "div.form-overlay.ng-star-inserted.visible")
+                if overlay_presente.is_displayed():
+                    print("⚠️ Overlay ainda presente, aguardando...")
+                    WebDriverWait(self.driver, 10).until(
+                        EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.form-overlay.ng-star-inserted.visible"))
+                    )
+            except NoSuchElementException:
+                pass
+            
+            # Clicar no botão
             try:
                 botao_editar.click()
             except:
-                # Se não conseguir clicar no ícone, tenta clicar no botão pai
                 botao_pai = botao_editar.find_element(By.XPATH, "..")
                 botao_pai.click()
             
-            # SELETOR 5: Modal de edição carregado
+            # Modal de edição carregado
+            print("⏱️ Aguardando modal de edição carregar...")
             self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.editor-section")))
             time.sleep(1)
             
@@ -187,55 +238,17 @@ class CarAdditionAutomation:
             return True
             
         except TimeoutException:
-            self.logger.error(f"Não foi possível encontrar ou editar o grupo '{self.nome_grupo}'")
+            self.logger.error("Não foi possível clicar no botão editar ou abrir o modal")
             return False
         except Exception as e:
-            self.logger.error(f"Erro ao abrir modal de edição: {e}")
+            self.logger.error(f"Erro ao clicar em editar: {e}")
             return False
-
-    def debug_checkbox_detalhado(self, chassi):
-        """Função para debugar de forma mais detalhada"""
-        try:
-            print(f"\n🔍 DEBUG DETALHADO para chassi: {chassi}")
-            print("="*60)
-            
-            # 1. Verificar elementos do chassi
-            elementos_chassi = self.driver.find_elements(By.XPATH, f"//*[contains(text(), '{chassi}')]")
-            print(f"Elementos contendo o chassi encontrados: {len(elementos_chassi)}")
-            
-            for i, el in enumerate(elementos_chassi):
-                if el.is_displayed():
-                    print(f"  Elemento {i}: {el.tag_name}, classes: {el.get_attribute('class')}")
-                    print(f"    Texto completo: {el.text}")
-                    try:
-                        parent = el.find_element(By.XPATH, "..")
-                        print(f"    Parent: {parent.tag_name}")
-                    except:
-                        pass
-            
-            # 2. Checkboxes na página
-            checkboxes = self.driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']")
-            checkboxes_visiveis = [cb for cb in checkboxes if cb.is_displayed()]
-            
-            print(f"\nCheckboxes visíveis: {len(checkboxes_visiveis)}")
-            for i, cb in enumerate(checkboxes_visiveis):
-                try:
-                    is_checked = self.driver.execute_script("return arguments[0].checked;", cb)
-                    print(f"  Checkbox {i}: checked={is_checked}, id={cb.get_attribute('id')}, name={cb.get_attribute('name')}")
-                except StaleElementReferenceException:
-                    print(f"  Checkbox {i}: STALE ELEMENT")
-                except Exception as e:
-                    print(f"  Checkbox {i}: ERRO - {e}")
-                    
-        except Exception as e:
-            print(f"Erro no debug detalhado: {e}")
 
     def encontrar_checkbox_por_contexto(self, chassi):
         """
         Tenta encontrar a checkbox específica através da estrutura HTML próxima ao chassi
         """
         try:
-            # Estratégia 1: Procurar o chassi e depois a checkbox no mesmo container
             possibles_seletores = [
                 f"//div[contains(text(), '{chassi}')]/ancestor::tr//input[@type='checkbox']",
                 f"//div[contains(text(), '{chassi}')]/ancestor::div[contains(@class, 'row')]//input[@type='checkbox']",
@@ -252,9 +265,7 @@ class CarAdditionAutomation:
                     if checkbox.is_displayed():
                         self.logger.info(f"Checkbox encontrada por contexto para chassi {chassi}")
                         return checkbox
-                except NoSuchElementException:
-                    continue
-                except StaleElementReferenceException:
+                except (NoSuchElementException, StaleElementReferenceException):
                     continue
                     
             return None
@@ -293,81 +304,41 @@ class CarAdditionAutomation:
         """
         for tentativa in range(max_tentativas):
             try:
-                # Verificar se está desmarcada
+                # Para ADIÇÃO: Verificar se está DESMARCADA (precisa marcar para adicionar)
                 is_checked_js = self.driver.execute_script("return arguments[0].checked;", checkbox)
-                is_checked_selenium = checkbox.is_selected()
                 
-                esta_desmarcada = not (is_checked_js or is_checked_selenium)
-                
-                self.logger.info(f"Checkbox para {chassi} - JS: {is_checked_js}, Selenium: {is_checked_selenium}")
-                
-                if esta_desmarcada:
-                    # Tentar diferentes métodos de clique para MARCAR a checkbox
-                    sucesso_clique = False
+                if not is_checked_js:  # Se está desmarcada, pode adicionar
+                    # Tentar clicar na checkbox para MARCAR (adicionar ao grupo)
+                    self.driver.execute_script("arguments[0].click();", checkbox)
+                    time.sleep(0.8)
                     
-                    # Método 1: Click JavaScript
+                    # Verificar se chassi foi adicionado (checkbox marcada)
+                    time.sleep(1)
                     try:
-                        self.driver.execute_script("arguments[0].click();", checkbox)
-                        time.sleep(0.8)
-                        sucesso_clique = True
-                    except Exception as e:
-                        self.logger.warning(f"Falhou clique JS: {e}")
-                    
-                    # Método 2: Click Selenium direto
-                    if not sucesso_clique:
-                        try:
-                            checkbox.click()
-                            time.sleep(0.8)
-                            sucesso_clique = True
-                        except Exception as e:
-                            self.logger.warning(f"Falhou clique Selenium: {e}")
-                    
-                    # Método 3: ActionChains
-                    if not sucesso_clique:
-                        try:
-                            from selenium.webdriver.common.action_chains import ActionChains
-                            ActionChains(self.driver).move_to_element(checkbox).click().perform()
-                            time.sleep(0.8)
-                            sucesso_clique = True
-                        except Exception as e:
-                            self.logger.warning(f"Falhou ActionChains: {e}")
-                    
-                    # Verificar se o clique funcionou verificando se a checkbox foi marcada
-                    if sucesso_clique:
-                        time.sleep(1)
-                        try:
-                            # Verificar se a checkbox foi marcada
-                            nova_verificacao = self.driver.execute_script("return arguments[0].checked;", checkbox)
-                            if nova_verificacao:
-                                self.logger.info(f"Chassi {chassi} adicionado ao grupo com sucesso")
-                                return True
-                            else:
-                                self.logger.warning(f"Clique não marcou a checkbox para {chassi}")
-                                return False
-                        except StaleElementReferenceException:
-                            # Se checkbox ficou stale após marcação, assumir sucesso
-                            self.logger.info(f"Chassi {chassi} adicionado com sucesso (checkbox stale após marcar)")
+                        nova_verificacao = self.driver.execute_script("return arguments[0].checked;", checkbox)
+                        if nova_verificacao:
+                            self.logger.info(f"Chassi {chassi} adicionado ao grupo com sucesso")
                             return True
-                    else:
-                        self.logger.error(f"Não foi possível clicar na checkbox para {chassi}")
-                        return False
+                        else:
+                            self.logger.warning(f"Clique não adicionou o chassi {chassi}")
+                            return False
+                    except StaleElementReferenceException:
+                        self.logger.info(f"Chassi {chassi} adicionado com sucesso (checkbox stale)")
+                        return True
                 else:
                     self.logger.warning(f"Chassi {chassi} encontrado mas já estava no grupo")
-                    self.carros_ja_no_grupo.append(chassi)
                     return False
                     
             except StaleElementReferenceException:
                 self.logger.warning(f"StaleElementReferenceException na tentativa {tentativa + 1} para {chassi}")
                 if tentativa < max_tentativas - 1:
                     time.sleep(1)
-                    # Tentar encontrar checkbox novamente
                     checkbox = self.encontrar_checkbox_por_contexto(chassi)
                     if not checkbox:
                         checkbox = self.encontrar_checkbox_por_posicao(chassi)
                     if not checkbox:
                         break
                 else:
-                    # Última tentativa falhou, mas pode ter funcionado
                     self.logger.info(f"StaleElement na última tentativa - assumindo sucesso para {chassi}")
                     return True
             except Exception as e:
@@ -386,13 +357,13 @@ class CarAdditionAutomation:
         try:
             self.logger.info(f"Tentando método de força bruta para chassi {chassi}")
             
-            # Pegar todas as checkboxes DESMARCADAS
+            # Pegar todas as checkboxes DESMARCADAS (para adicionar)
             checkboxes_desmarcadas = self.driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']:not(:checked)")
             checkboxes_visiveis = [cb for cb in checkboxes_desmarcadas if cb.is_displayed()]
             
             for i, checkbox in enumerate(checkboxes_visiveis):
                 try:
-                    # Marcar a checkbox
+                    # Marcar a checkbox (adicionar ao grupo)
                     self.driver.execute_script("arguments[0].click();", checkbox)
                     time.sleep(1)
                     
@@ -400,14 +371,11 @@ class CarAdditionAutomation:
                     try:
                         checkbox_marcada = self.driver.execute_script("return arguments[0].checked;", checkbox)
                         if checkbox_marcada:
-                            # Checkbox foi marcada = chassi foi adicionado ao grupo
                             self.logger.info(f"Chassi {chassi} adicionado com sucesso (método força bruta, checkbox {i})")
                             return True
                         else:
-                            # Checkbox não foi marcada, continuar para próxima
                             continue
                     except StaleElementReferenceException:
-                        # Se checkbox ficou stale após marcar, assumir sucesso
                         self.logger.info(f"Chassi {chassi} adicionado com sucesso (método força bruta, checkbox stale)")
                         return True
                         
@@ -425,15 +393,9 @@ class CarAdditionAutomation:
     def pesquisar_e_adicionar_chassi(self, chassi):
         """
         Pesquisa um chassi e adiciona ao grupo se encontrado
-        
-        Args:
-            chassi (str): Número do chassi a ser pesquisado
-            
-        Returns:
-            bool: True se adicionado com sucesso, False se não encontrado
         """
         try:
-            # SELETOR 5: Campo de pesquisa de chassi dentro do modal
+            # Campo de pesquisa de chassi dentro do modal
             campo_pesquisa_chassi = self.wait.until(
                 EC.presence_of_element_located((By.CSS_SELECTOR, "input.form-input[placeholder='Buscar']"))
             )
@@ -442,13 +404,10 @@ class CarAdditionAutomation:
             campo_pesquisa_chassi.clear()
             campo_pesquisa_chassi.send_keys(chassi)
             
-            # SELETOR 6: Aguardar carregamento automático da pesquisa
-            time.sleep(1)  # Delay para pesquisa automática
+            # Aguardar carregamento automático da pesquisa
+            time.sleep(2)
             
-            # Delay adicional para carregar completamente o resultado
-            time.sleep(0.5)
-            
-            # Verificar se o chassi foi encontrado primeiro
+            # Verificar se o chassi foi encontrado
             elementos_chassi = self.driver.find_elements(By.XPATH, f"//*[contains(text(), '{chassi}')]")
             chassi_encontrado = any(el.is_displayed() for el in elementos_chassi)
             
@@ -472,109 +431,205 @@ class CarAdditionAutomation:
         except Exception as e:
             self.logger.error(f"Erro geral ao processar chassi {chassi}: {e}")
             return False
-    
+
     def salvar_alteracoes(self):
-        """Salva as alterações no grupo"""
+        """Salva as alterações no grupo usando o seletor correto"""
         try:
-            # SELETOR 8: Botão salvar dentro do modal
-            botao_salvar = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Salvar') or contains(text(), 'SALVAR')]"))
-            )
-            botao_salvar.click()
+            print("💾 Salvando alterações...")
             
-            # Aguardar confirmação de salvamento
+            # Primeiro, tentar pelo XPath mais específico com o texto exato
+            try:
+                botao_salvar = self.wait.until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[@type='submit' and contains(@class, 'button') and contains(@class, 'btn-mz') and contains(@class, 'success') and normalize-space(text())='Salvar']"))
+                )
+                self.logger.info("Botão 'Salvar' encontrado pelo XPath com texto")
+            except TimeoutException:
+                # Se não encontrar pelo texto, tentar pelo seletor CSS corrigido
+                try:
+                    botao_salvar = self.wait.until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "button[type='submit'].button.btn-mz.success.ng-star-inserted"))
+                    )
+                    # Verificar se é realmente o botão "Salvar" pelo texto
+                    texto_botao = botao_salvar.text.strip()
+                    if "Salvar" not in texto_botao or "criar" in texto_botao.lower():
+                        self.logger.warning(f"Botão encontrado não é o correto. Texto: '{texto_botao}'")
+                        raise TimeoutException("Botão incorreto encontrado")
+                    self.logger.info("Botão 'Salvar' encontrado pelo CSS selector")
+                except TimeoutException:
+                    # Última tentativa: buscar todos os botões submit e filtrar
+                    botoes_submit = self.driver.find_elements(By.CSS_SELECTOR, "button[type='submit']")
+                    botao_salvar = None
+                    
+                    for botao in botoes_submit:
+                        try:
+                            texto = botao.text.strip()
+                            if texto == "Salvar" and "success" in botao.get_attribute("class"):
+                                botao_salvar = botao
+                                self.logger.info(f"Botão 'Salvar' encontrado por busca manual: '{texto}'")
+                                break
+                        except:
+                            continue
+                    
+                    if not botao_salvar:
+                        raise TimeoutException("Botão 'Salvar' não encontrado em nenhuma tentativa")
+            
+            # Verificar se o botão está realmente visível e clicável
+            if not botao_salvar.is_displayed():
+                self.logger.error("Botão 'Salvar' encontrado mas não está visível")
+                return False
+            
+            # Log do botão que será clicado
+            texto_final = botao_salvar.text.strip()
+            classes_final = botao_salvar.get_attribute("class")
+            self.logger.info(f"Clicando no botão: '{texto_final}' com classes: '{classes_final}'")
+            
+            # Clicar no botão
+            try:
+                botao_salvar.click()
+            except Exception as e:
+                # Se o clique normal falhar, tentar com JavaScript
+                self.logger.warning(f"Clique normal falhou, tentando com JavaScript: {e}")
+                self.driver.execute_script("arguments[0].click();", botao_salvar)
+            
+            # Aguardar confirmação de salvamento e fechamento do modal
+            print("⏱️ Aguardando confirmação do salvamento...")
             time.sleep(3)
-            self.logger.info("Alterações salvas com sucesso")
-            return True
             
+            # Verificar se o modal foi fechado (isso indica que salvou com sucesso)
+            try:
+                WebDriverWait(self.driver, 8).until(
+                    EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.editor-section"))
+                )
+                self.logger.info("Modal fechado - alterações salvas com sucesso")
+                return True
+            except TimeoutException:
+                # Se o modal ainda estiver aberto, pode ser que ainda esteja processando
+                print("⚠️ Modal ainda aberto, aguardando mais tempo...")
+                time.sleep(5)
+                try:
+                    WebDriverWait(self.driver, 5).until(
+                        EC.invisibility_of_element_located((By.CSS_SELECTOR, "div.editor-section"))
+                    )
+                    self.logger.info("Modal fechado após tempo adicional - alterações salvas")
+                    return True
+                except TimeoutException:
+                    self.logger.warning("Modal ainda aberto após salvamento - pode haver erro")
+                    return False
+            
+        except TimeoutException:
+            self.logger.error("Botão salvar não encontrado ou não clicável")
+            # Listar todos os botões disponíveis para debug
+            try:
+                botoes = self.driver.find_elements(By.TAG_NAME, "button")
+                self.logger.info("Botões disponíveis no modal:")
+                for i, botao in enumerate(botoes):
+                    try:
+                        texto = botao.text.strip()
+                        classes = botao.get_attribute("class")
+                        tipo = botao.get_attribute("type")
+                        if texto or "btn" in classes:
+                            self.logger.info(f"  Botão {i}: '{texto}' | type='{tipo}' | class='{classes}'")
+                    except:
+                        pass
+            except:
+                pass
+            return False
         except Exception as e:
             self.logger.error(f"Erro ao salvar alterações: {e}")
             return False
     
-    def fechar_modal(self):
-        """Fecha o modal de edição"""
-        try:
-            # SELETOR 9: Tentar várias formas de fechar o modal
-            try:
-                # Tentar botão com X ou close
-                self.driver.find_element(By.XPATH, "//button[contains(@class, 'close') or contains(@class, 'btn-close')]").click()
-            except:
-                try:
-                    # Tentar botão Cancelar
-                    self.driver.find_element(By.XPATH, "//button[contains(text(), 'Cancelar') or contains(text(), 'CANCELAR')]").click()
-                except:
-                    # Tentar ESC como último recurso
-                    from selenium.webdriver.common.keys import Keys
-                    self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-            
-            time.sleep(1)
-            
-        except Exception as e:
-            self.logger.warning(f"Dificuldade para fechar modal: {e}")
-            # Tentar ESC como último recurso
-            try:
-                from selenium.webdriver.common.keys import Keys
-                self.driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.ESCAPE)
-                time.sleep(1)
-            except:
-                pass
-    
-    def processar_chassis(self, chassis_list):
+    def processar_lote(self, chassis_lote, numero_lote):
         """
-        Processa a lista completa de chassis
+        Processa um lote de até 60 chassis
         
         Args:
-            chassis_list (list): Lista de chassis para processar
+            chassis_lote (list): Lista de chassis para processar neste lote
+            numero_lote (int): Número do lote atual
+            
+        Returns:
+            bool: True se o lote foi processado com sucesso
+        """
+        print(f"\n🔄 PROCESSANDO LOTE {numero_lote}")
+        print("="*50)
+        print(f"📦 Chassis neste lote: {len(chassis_lote)}")
+        
+        try:
+            # 1. Pesquisar o grupo
+            if not self.pesquisar_grupo():
+                print("❌ Não foi possível encontrar o grupo")
+                return False
+            
+            # 2. Clicar em editar para abrir o modal
+            if not self.clicar_editar_grupo():
+                print("❌ Não foi possível abrir o modal de edição")
+                return False
+            
+            print("✅ Modal aberto, processando chassis...")
+            
+            # 3. Processar cada chassi do lote
+            for i, chassi in enumerate(chassis_lote, 1):
+                print(f"  Processando {i}/{len(chassis_lote)}: {chassi}")
+                
+                resultado = self.pesquisar_e_adicionar_chassi(chassi)
+                
+                if resultado:
+                    self.carros_adicionados.append(chassi)
+                    print(f"    ✅ Adicionado")
+                elif chassi in self.carros_ja_no_grupo:
+                    print(f"    ⚠️ Já estava no grupo")
+                else:
+                    self.carros_nao_encontrados.append(chassi)
+                    print(f"    ❌ Não adicionado")
+                
+                self.total_processados += 1
+                time.sleep(0.5)  # Pequena pausa entre pesquisas
+            
+            # 4. Salvar alterações do lote
+            print(f"\n💾 Salvando alterações do lote {numero_lote}...")
+            if self.salvar_alteracoes():
+                print(f"✅ Lote {numero_lote} salvo com sucesso")
+                time.sleep(2)  # Aguardar processamento do servidor
+                return True
+            else:
+                print(f"⚠️ Problema ao salvar lote {numero_lote}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Erro ao processar lote {numero_lote}: {e}")
+            return False
+    
+    def processar_todos_chassis(self, chassis_list):
+        """
+        Processa todos os chassis dividindo em lotes de 60
         """
         total_chassis = len(chassis_list)
-        processados = 0
+        tamanho_lote = 10
+        numero_lote = 1
         
-        while processados < total_chassis:
-            # Pesquisar grupo e abrir modal de edição
-            if not self.pesquisar_grupo_e_editar():
-                break
+        # Dividir chassis em lotes
+        for i in range(0, total_chassis, tamanho_lote):
+            chassis_lote = chassis_list[i:i + tamanho_lote]
             
-            # Processar até 50 chassis por vez
-            lote_atual = 0
-            max_lote = 50
+            print(f"\n📊 Progresso: {min(i + tamanho_lote, total_chassis)}/{total_chassis} chassis")
             
-            while lote_atual < max_lote and processados < total_chassis:
-                chassi = chassis_list[processados]
+            # Processar o lote atual
+            sucesso_lote = self.processar_lote(chassis_lote, numero_lote)
+            
+            if not sucesso_lote:
+                print(f"❌ Erro no lote {numero_lote}. Continuando para próximo lote...")
+            
+            # Se não é o último lote, recarregar a página
+            if i + tamanho_lote < total_chassis:
+                print(f"⏱️ Aguardando 5 segundos antes de recarregar...")
+                time.sleep(5)
                 
-                print(f"Processando chassi {processados + 1}/{total_chassis}: {chassi}")
-                
-                # Usar debug detalhado quando necessário
-                # self.debug_checkbox_detalhado(chassi)  # Descomente para debug
-                
-                if self.pesquisar_e_adicionar_chassi(chassi):
-                    self.carros_adicionados.append(chassi)
-                    print(f"✅ Chassi {chassi} adicionado com sucesso")
-                else:
-                    if chassi not in self.carros_ja_no_grupo:
-                        self.carros_nao_encontrados.append(chassi)
-                        print(f"❌ Chassi {chassi} não foi adicionado")
-                    else:
-                        print(f"⚠️ Chassi {chassi} já estava no grupo")
-                
-                processados += 1
-                lote_atual += 1
-                self.total_processados += 1
-                
-                # Pequena pausa entre pesquisas
-                time.sleep(0.5)
+                if not self.recarregar_pagina():
+                    print("❌ Erro ao recarregar página. Tentando continuar...")
+                    time.sleep(2)
             
-            # Salvar alterações do lote atual
-            print(f"\n💾 Salvando alterações do lote...")
-            self.salvar_alteracoes()
-            
-            # Fechar modal
-            print(f"🔒 Fechando modal...")
-            self.fechar_modal()
-            
-            # Pausa entre lotes
-            time.sleep(2)
-            
-            print(f"📦 Lote concluído. Processados: {processados}/{total_chassis}")
+            numero_lote += 1
+        
+        print(f"\n🎉 Todos os lotes processados!")
     
     def gerar_relatorio(self):
         """Gera relatório final do processamento"""
@@ -601,7 +656,6 @@ class CarAdditionAutomation:
         
         print(relatorio)
         
-        # Mensagem específica solicitada
         if self.carros_nao_encontrados:
             print(f"Os seguintes chassis não foram encontrados: {self.carros_nao_encontrados}")
         if self.carros_ja_no_grupo:
@@ -623,36 +677,36 @@ class CarAdditionAutomation:
                 return
             
             # 3. Mostrar resumo
+            total_lotes = (len(chassis_list) + 59) // 60  # Arredonda para cima
             print(f"\n📊 RESUMO DA AUTOMAÇÃO:")
             print(f"🏷️  Grupo: {self.nome_grupo}")
             print(f"🚗 Total de chassis: {len(chassis_list)}")
-            print(f"📦 Serão processados em lotes de 50")
-            print(f"⏱️  Tempo estimado: ~{len(chassis_list) * 3} segundos")
+            print(f"📦 Serão processados em {total_lotes} lotes de até 60 chassis")
+            print(f"🔄 A página será recarregada entre cada lote")
             
             # 4. Configurar browser
             print("\n🔧 Configurando navegador...")
             self.setup_driver()
             
             # 5. Aguardar login manual
-            self.fazer_login_e_navegar()
+            self.fazer_login_inicial()
             
-            # 6. Confirmação final antes de processar
+            # 6. Confirmação final
             print("\n" + "="*50)
             print("⚠️  CONFIRMAÇÃO FINAL")
             print("="*50)
-            print("A automação irá começar a processar os chassis.")
-            print(f"Certifique-se de estar na página de grupos de veículos.")
+            print("A automação irá processar os chassis em lotes.")
             print(f"Grupo a ser editado: {self.nome_grupo}")
+            print(f"Total de lotes: {total_lotes}")
             
-            confirmar = input("\n🚀 Iniciar processamento automático? (s/n): ").lower()
+            confirmar = input("\n🚀 Iniciar processamento? (s/n): ").lower()
             if confirmar not in ['s', 'sim', 'y', 'yes']:
                 print("❌ Automação cancelada pelo usuário")
                 return
             
-            # 7. Processar chassis
-            print("\n🔄 Iniciando processamento dos chassis...")
-            print("-"*50)
-            self.processar_chassis(chassis_list)
+            # 7. Processar todos os chassis
+            print("\n🔄 Iniciando processamento...")
+            self.processar_todos_chassis(chassis_list)
             
             # 8. Gerar relatório
             print("\n📋 Gerando relatório final...")
@@ -671,8 +725,6 @@ class CarAdditionAutomation:
                 self.driver.quit()
                 print("🔒 Navegador fechado")
 
-
-# Uso
 
 def main():
     """Função principal da automação"""

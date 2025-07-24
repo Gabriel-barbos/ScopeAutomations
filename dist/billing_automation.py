@@ -24,8 +24,7 @@ except:
         logger.warning("Não foi possível configurar locale português")
 
 class ScopeBillingAutomation:
-    def __init__(self, excel_file_path):
-        self.excel_file_path = excel_file_path
+    def __init__(self):
         self.base_url = "https://billing.scopemp.net/Scope.Billing.Web/"
         self.contracts_url = "https://billing.scopemp.net/Scope.Billing.Web/ContractMaintenance.aspx"
         self.driver = None
@@ -34,28 +33,10 @@ class ScopeBillingAutomation:
         self.error_count = 0
         self.termination_date = None
         self.total_contracts_terminated = 0
+        self.error_ids = []  # Lista para armazenar IDs que deram erro
         
-    def setup_driver_existing_session(self, debug_port=9222):
-        """Conecta a uma sessão existente do Chrome"""
-        try:
-            chrome_options = Options()
-            chrome_options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
-            
-            self.driver = webdriver.Chrome(options=chrome_options)
-            self.wait = WebDriverWait(self.driver, 15)
-            logger.info("Conectado à sessão existente do Chrome")
-            
-        except Exception as e:
-            logger.error(f"Erro ao conectar à sessão existente: {e}")
-            logger.info("INSTRUÇÕES:")
-            logger.info("1. Feche todas as instâncias do Chrome")
-            logger.info("2. Abra o Chrome com: chrome --remote-debugging-port=9222")
-            logger.info("3. Faça login normalmente no sistema")
-            logger.info("4. Execute este script novamente")
-            raise
-    
-    def setup_driver_new_session(self):
-        """Cria uma nova sessão do Chrome (para caso não queira usar sessão existente)"""
+    def setup_driver(self):
+        """Cria uma nova sessão do Chrome"""
         chrome_options = Options()
         chrome_options.add_argument("--disable-web-security")
         chrome_options.add_argument("--allow-running-insecure-content")
@@ -65,13 +46,41 @@ class ScopeBillingAutomation:
         self.wait = WebDriverWait(self.driver, 15)
         
         logger.info("Nova sessão do Chrome criada")
+        logger.info("Navegando para o sistema...")
+        
+        self.driver.get(self.base_url)
+        
         logger.info("Por favor, faça login manualmente no sistema e pressione Enter para continuar...")
         input()
         
+    def get_equipment_ids(self):
+        """Permite ao usuário escolher entre Excel ou inserção manual"""
+        print("\n" + "="*50)
+        print("CONFIGURAÇÃO DOS IDs DOS EQUIPAMENTOS")
+        print("="*50)
+        print("Escolha como deseja inserir os IDs:")
+        print("1. Importar de arquivo Excel")
+        print("2. Inserir manualmente no terminal")
+        
+        while True:
+            choice = input("\nEscolha uma opção (1 ou 2): ").strip()
+            
+            if choice == '1':
+                return self.read_excel_ids()
+            elif choice == '2':
+                return self.input_manual_ids()
+            else:
+                print("❌ Opção inválida. Digite 1 ou 2.")
+    
     def read_excel_ids(self):
         """Lê os IDs do arquivo Excel"""
         try:
-            df = pd.read_excel(self.excel_file_path)
+            excel_file = input("Digite o caminho do arquivo Excel (ou apenas o nome se estiver na mesma pasta): ").strip()
+            if not excel_file:
+                excel_file = "ID_billing.xlsx"  # Nome padrão
+            
+            df = pd.read_excel(excel_file)
+            
             # Tenta diferentes nomes de coluna possíveis
             possible_columns = ['ID', 'id', 'Id', 'Equipment_ID', 'EquipmentID', 'Equipamento']
             
@@ -86,12 +95,51 @@ class ScopeBillingAutomation:
                 id_column = input("Digite o nome da coluna que contém os IDs: ")
             
             ids = df[id_column].dropna().astype(str).tolist()
-            logger.info(f"Lidos {len(ids)} IDs do arquivo Excel (coluna: {id_column})")
+            logger.info(f"✅ Lidos {len(ids)} IDs do arquivo Excel (coluna: {id_column})")
             return ids
             
         except Exception as e:
-            logger.error(f"Erro ao ler arquivo Excel: {e}")
+            logger.error(f"❌ Erro ao ler arquivo Excel: {e}")
+            print("Deseja tentar inserir os IDs manualmente? (s/n): ", end="")
+            if input().lower() == 's':
+                return self.input_manual_ids()
             return []
+    
+    def input_manual_ids(self):
+        """Permite inserir IDs manualmente no terminal"""
+        print("\n" + "="*40)
+        print("INSERÇÃO MANUAL DE IDs")
+        print("="*40)
+        print("Digite os IDs dos equipamentos (um por linha)")
+        print("Digite 'fim' para terminar a inserção")
+        print("Digite 'limpar' para apagar todos os IDs inseridos")
+        print("-"*40)
+        
+        ids = []
+        
+        while True:
+            id_input = input(f"ID {len(ids) + 1}: ").strip()
+            
+            if id_input.lower() == 'fim':
+                break
+            elif id_input.lower() == 'limpar':
+                ids = []
+                print("✅ Lista de IDs limpa!")
+                continue
+            elif id_input:
+                ids.append(id_input)
+                print(f"✅ ID '{id_input}' adicionado. Total: {len(ids)}")
+            else:
+                print("❌ ID vazio ignorado.")
+        
+        if ids:
+            print(f"\n✅ Total de {len(ids)} IDs inseridos:")
+            for i, id_val in enumerate(ids, 1):
+                print(f"  {i}. {id_val}")
+        else:
+            print("❌ Nenhum ID foi inserido.")
+        
+        return ids
     
     def navigate_to_contracts(self):
         """Navega para a página de contratos"""
@@ -417,6 +465,9 @@ class ScopeBillingAutomation:
                         logger.info("Executando debug da tabela para análise...")
                         self.debug_table_structure()
                         
+                        # Adicionar ID à lista de erros
+                        self.error_ids.append(equipment_id)
+                        
                         # Perguntar se deve continuar ou pular
                         response = input(f"\nNenhum contrato ativo encontrado para {equipment_id}. Continuar para próximo? (s/n): ")
                         if response.lower() != 's':
@@ -445,6 +496,10 @@ class ScopeBillingAutomation:
                 except Exception as e:
                     logger.error(f"❌ Erro ao cancelar contrato {contract_number} do equipamento {equipment_id}: {e}")
                     
+                    # Adicionar ID à lista de erros
+                    if equipment_id not in self.error_ids:
+                        self.error_ids.append(equipment_id)
+                    
                     # Perguntar se deve tentar novamente ou pular este contrato
                     response = input(f"Erro ao cancelar contrato. Tentar novamente? (s/n): ")
                     if response.lower() != 's':
@@ -454,6 +509,8 @@ class ScopeBillingAutomation:
             
             if attempt > max_attempts:
                 logger.warning(f"⚠️ Atingido limite máximo de tentativas para {equipment_id}")
+                if equipment_id not in self.error_ids:
+                    self.error_ids.append(equipment_id)
             
             if contracts_terminated > 0:
                 self.processed_count += 1
@@ -461,31 +518,32 @@ class ScopeBillingAutomation:
                 return True
             else:
                 logger.warning(f"⚠️ Nenhum contrato foi cancelado para {equipment_id}")
+                if equipment_id not in self.error_ids:
+                    self.error_ids.append(equipment_id)
                 return False
             
         except Exception as e:
             logger.error(f"❌ Erro crítico ao processar equipamento {equipment_id}: {e}")
             self.error_count += 1
+            if equipment_id not in self.error_ids:
+                self.error_ids.append(equipment_id)
             return False
     
-    def run_automation(self, use_existing_session=True):
+    def run_automation(self):
         """Executa todo o processo de automação"""
         try:
             # Configurar driver
-            if use_existing_session:
-                self.setup_driver_existing_session()
-            else:
-                self.setup_driver_new_session()
+            self.setup_driver()
+            
+            # Obter IDs dos equipamentos
+            equipment_ids = self.get_equipment_ids()
+            
+            if not equipment_ids:
+                logger.error("Nenhum ID encontrado")
+                return
             
             # Solicitar data de terminação
             self.get_termination_date()
-            
-            # Ler IDs do Excel
-            equipment_ids = self.read_excel_ids()
-            
-            if not equipment_ids:
-                logger.error("Nenhum ID encontrado no arquivo Excel")
-                return
             
             logger.info(f"Iniciando processamento de {len(equipment_ids)} equipamentos")
             
@@ -510,21 +568,12 @@ class ScopeBillingAutomation:
                 except Exception as e:
                     logger.error(f"Erro crítico ao processar {equipment_id}: {e}")
                     self.error_count += 1
+                    if equipment_id not in self.error_ids:
+                        self.error_ids.append(equipment_id)
                     continue
             
             # Relatório final
-            logger.info("\n" + "="*60)
-            logger.info("🎉 RELATÓRIO FINAL DA AUTOMAÇÃO:")
-            logger.info("="*60)
-            logger.info(f"📋 Total de equipamentos processados: {len(equipment_ids)}")
-            logger.info(f"✅ Equipamentos com sucesso: {self.processed_count}")
-            logger.info(f"❌ Equipamentos com erro: {self.error_count}")
-            logger.info(f"🎯 Total de contratos cancelados: {self.total_contracts_terminated}")
-            logger.info(f"📅 Data de terminação usada: {self.termination_date}")
-            
-            success_rate = (self.processed_count / len(equipment_ids)) * 100 if equipment_ids else 0
-            logger.info(f"📊 Taxa de sucesso: {success_rate:.1f}%")
-            logger.info("="*60)
+            self.print_final_report(equipment_ids)
             
         except Exception as e:
             logger.error(f"Erro geral na automação: {e}")
@@ -532,28 +581,68 @@ class ScopeBillingAutomation:
             if self.driver:
                 input("Pressione Enter para fechar o navegador...")
                 self.driver.quit()
+    
+    def print_final_report(self, equipment_ids):
+        """Imprime o relatório final da automação"""
+        logger.info("\n" + "="*60)
+        logger.info("🎉 RELATÓRIO FINAL DA AUTOMAÇÃO:")
+        logger.info("="*60)
+        logger.info(f"📋 Total de equipamentos processados: {len(equipment_ids)}")
+        logger.info(f"✅ Equipamentos com sucesso: {self.processed_count}")
+        logger.info(f"❌ Equipamentos com erro: {self.error_count}")
+        logger.info(f"🎯 Total de contratos cancelados: {self.total_contracts_terminated}")
+        logger.info(f"📅 Data de terminação usada: {self.termination_date}")
+        
+        success_rate = (self.processed_count / len(equipment_ids)) * 100 if equipment_ids else 0
+        logger.info(f"📊 Taxa de sucesso: {success_rate:.1f}%")
+        
+        # Mostrar lista de IDs com erro
+        if self.error_ids:
+            logger.info("\n" + "="*60)
+            logger.info("❌ LISTA DE IDs COM ERRO:")
+            logger.info("="*60)
+            for i, error_id in enumerate(self.error_ids, 1):
+                logger.info(f"{i:2d}. {error_id}")
+            logger.info("="*60)
+            
+            # Salvar lista de erros em arquivo de texto
+            try:
+                error_filename = f"ids_com_erro_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                with open(error_filename, 'w', encoding='utf-8') as f:
+                    f.write("IDs que apresentaram erro durante o processamento:\n")
+                    f.write("="*50 + "\n")
+                    f.write(f"Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                    f.write(f"Total de IDs com erro: {len(self.error_ids)}\n\n")
+                    for i, error_id in enumerate(self.error_ids, 1):
+                        f.write(f"{i:2d}. {error_id}\n")
+                
+                logger.info(f"💾 Lista de erros salva em: {error_filename}")
+            except Exception as e:
+                logger.error(f"Erro ao salvar arquivo de erros: {e}")
+        else:
+            logger.info("\n🎉 Nenhum ID apresentou erro!")
+        
+        logger.info("="*60)
 
 # Exemplo de uso
-if __name__ == "__main__":
-    # Configurações
-    EXCEL_FILE = "ID_billing.xlsx"  # Ajuste o caminho do seu arquivo
-    
+
+def main():
+    """Função principal da automação"""
     print("=== AUTOMAÇÃO DE CANCELAMENTO DE CONTRATOS ===")
     print("URL: https://billing.scopemp.net/Scope.Billing.Web/")
     print()
-    
-    # Instruções para uso com sessão existente
-    print("INSTRUÇÕES PARA USO:")
-    print("1. Feche todas as instâncias do Chrome")
-    print("2. Abra o Chrome com: chrome --remote-debugging-port=9222")
-    print("3. Faça login no sistema Scope Billing")
-    print("4. Execute este script")
-    print()
-    
-    use_existing = input("Usar sessão existente do Chrome? (s/n): ").lower() == 's'
+    print("INSTRUÇÕES:")
+    print("1. O script abrirá o Chrome automaticamente")
+    print("2. Faça login no sistema Scope Billing")
+    print("3. Pressione Enter para continuar")
+    print("4. Configure os IDs e data de terminação")
+    print("="*50)
     
     # Criar instância da automação
-    automation = ScopeBillingAutomation(EXCEL_FILE)
+    automation = ScopeBillingAutomation()
     
     # Executar automação
-    automation.run_automation(use_existing_session=use_existing)
+    automation.run_automation()
+
+if __name__ == '__main__':
+    main()
