@@ -14,9 +14,11 @@ def verificar_arquivos():
         'add_automation.py',
         'remove_automation.py', 
         'billing_automation.py',
+        'qtgo_automation.py',  # Novo arquivo adicionado
         'AdicionarGrupo.xlsx',
         'RemoverGrupo.xlsx',
-        'ID_billing.xlsx'
+        'ID_billing.xlsx',
+        'QTGO_ID.xlsx'  # Nova planilha para o QTGO
     ]
     
     arquivos_faltando = []
@@ -40,7 +42,8 @@ def mostrar_menu():
     print("1 - Adicionar Carros ao Grupo de Veículos")
     print("2 - Remover Carros do Grupo de Veículos") 
     print("3 - Remover Unidades do Billing")
-    print("4 - Verificar Arquivos do Sistema")
+    print("4 - Remover Carros do QTGO")  # Nova opção
+    print("5 - Verificar Arquivos do Sistema")  # Opção renumerada
     print("0 - Sair")
     print()
     print("-" * 60)
@@ -64,28 +67,76 @@ def executar_script(nome_script):
                         add_automation.main()
                     else:
                         # Se não tem função main, executa o código principal
-                        exec(open(nome_script).read())
+                        exec(compile(open(nome_script, 'rb').read(), nome_script, 'exec'))
                         
                 elif nome_modulo == 'remove_automation':
                     import remove_automation
                     if hasattr(remove_automation, 'main'):
                         remove_automation.main()
                     else:
-                        exec(open(nome_script).read())
+                        exec(compile(open(nome_script, 'rb').read(), nome_script, 'exec'))
                         
                 elif nome_modulo == 'billing_automation':
                     import billing_automation
                     if hasattr(billing_automation, 'main'):
                         billing_automation.main()
                     else:
-                        exec(open(nome_script).read())
+                        exec(compile(open(nome_script, 'rb').read(), nome_script, 'exec'))
+
+                elif nome_modulo == 'qtgo_automation':  # Novo módulo
+                    try:
+                        import qtgo_automation
+                        if hasattr(qtgo_automation, 'main'):
+                            qtgo_automation.main()
+                        else:
+                            # Força reimportação
+                            import importlib
+                            importlib.reload(qtgo_automation)
+                    except Exception as e:
+                        print(f"⚠️  Erro na importação: {e}")
+                        # Fallback para execução de arquivo
+                        script_path = nome_script
+                        if hasattr(sys, '_MEIPASS'):
+                            script_path = os.path.join(sys._MEIPASS, nome_script)
+                        
+                        # Tenta modo binário primeiro (mais confiável)
+                        try:
+                            with open(script_path, 'rb') as f:
+                                code = compile(f.read(), script_path, 'exec')
+                                exec(code)
+                        except Exception:
+                            # Último recurso: UTF-8 com ignore
+                            with open(script_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                exec(f.read())
                         
                 print(f"✅ {nome_script} executado com sucesso!")
                 
             except ImportError:
                 # Se não conseguir importar, tenta executar como arquivo
                 print(f"⚠️  Importação falhou, tentando execução direta...")
-                exec(open(nome_script).read())
+                try:
+                    # Determina o caminho correto do arquivo
+                    if hasattr(sys, '_MEIPASS'):
+                        script_path = os.path.join(sys._MEIPASS, nome_script)
+                    else:
+                        script_path = nome_script
+                    
+                    # Tenta diferentes codificações
+                    for encoding in ['utf-8', 'latin-1', 'cp1252']:
+                        try:
+                            with open(script_path, 'r', encoding=encoding) as f:
+                                exec(f.read())
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        # Último recurso: modo binário
+                        exec(compile(open(script_path, 'rb').read(), script_path, 'exec'))
+                        
+                except Exception as e:
+                    print(f"❌ Erro na execução direta: {str(e)}")
+                    raise
+                    
                 print(f"✅ {nome_script} executado com sucesso!")
                 
         else:
@@ -115,7 +166,8 @@ def verificar_planilhas():
     planilhas = {
         'AdicionarGrupo.xlsx': 'Planilha para adicionar carros ao grupo',
         'RemoverGrupo.xlsx': 'Planilha para remover carros do grupo',
-        'ID_billing.xlsx': 'Planilha com IDs para billing'
+        'ID_billing.xlsx': 'Planilha com IDs para billing',
+        'QTGO_ID.xlsx': 'Planilha para remover carros do QTGO'  # Nova planilha
     }
     
     print("\n📊 STATUS DAS PLANILHAS:")
@@ -171,14 +223,21 @@ def main():
                 input("Pressione ENTER para continuar ou CTRL+C para cancelar...")
                 executar_script('billing_automation.py')
                 
-            elif opcao == '4':
+            elif opcao == '4':  # Nova opção
+                limpar_tela()
+                print("🚙 REMOVER CARROS DO QTGO")
+                print("Certifique-se de que a planilha 'QTGO_ID.xlsx' está preenchida")
+                input("Pressione ENTER para continuar ou CTRL+C para cancelar...")
+                executar_script('qtgo_automation.py')
+                
+            elif opcao == '5':  # Opção renumerada
                 limpar_tela()
                 print("🔍 VERIFICAÇÃO DO SISTEMA")
                 verificar_planilhas()
                 
                 print("\n📜 SCRIPTS DISPONÍVEIS:")
                 print("-" * 40)
-                scripts = ['add_automation.py', 'remove_automation.py', 'billing_automation.py']
+                scripts = ['add_automation.py', 'remove_automation.py', 'billing_automation.py', 'qtgo_automation.py']  # Lista atualizada
                 for script in scripts:
                     if Path(script).exists():
                         print(f"✅ {script}")
@@ -194,7 +253,7 @@ def main():
                 break
                 
             else:
-                print("\n❌ Opção inválida! Digite um número de 0 a 4.")
+                print("\n❌ Opção inválida! Digite um número de 0 a 5.")  # Faixa atualizada
                 input("Pressione ENTER para tentar novamente...")
                 
         except KeyboardInterrupt:

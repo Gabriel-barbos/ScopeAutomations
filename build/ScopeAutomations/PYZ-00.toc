@@ -2624,6 +2624,7 @@
   ('pytz.tzinfo',
    'C:\\Users\\Weback\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python312\\site-packages\\pytz\\tzinfo.py',
    'PYMODULE'),
+  ('qtgo_automation', 'C:\\ScopeAutomations\\qtgo_automation.py', 'PYMODULE'),
   ('queue',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\\Lib\\queue.py',

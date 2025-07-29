@@ -44,6 +44,8 @@ a = Analysis(
         ('AdicionarGrupo.xlsx', '.'),
         ('RemoverGrupo.xlsx', '.'),
         ('ID_billing.xlsx', '.'),
+        ('QTGO_ID.xlsx', '.'),
+        ('qtgo_automation.py', '.'),
     ],
     hiddenimports=[
         'selenium',
@@ -60,7 +62,8 @@ a = Analysis(
         'xlsxwriter',
         'add_automation',
         'remove_automation',
-        'billing_automation'
+        'billing_automation',
+        'qtgo_automation'
     ],
     hookspath=[],
     hooksconfig={},
@@ -109,9 +112,11 @@ def verificar_arquivos():
         'add_automation.py',
         'remove_automation.py',
         'billing_automation.py',
+        'qtgo_automation.py',  # Novo arquivo adicionado
         'AdicionarGrupo.xlsx',
         'RemoverGrupo.xlsx', 
-        'ID_billing.xlsx'
+        'ID_billing.xlsx',
+        'QTGO_ID.xlsx'  # Nova planilha
     ]
     
     arquivos_faltando = []
@@ -199,7 +204,7 @@ def main():
     # Confirmar build
     print("🚀 Pronto para gerar o executável!")
     print("Isso irá:")
-    print("- Incluir todos os scripts Python")
+    print("- Incluir todos os scripts Python (4 automações)")
     print("- Incluir todas as planilhas Excel")
     print("- Criar um executável único")
     print("- Gerar arquivo .bat para execução")
@@ -232,6 +237,12 @@ def main():
         print("⚠️  IMPORTANTE:")
         print("- Chrome/Edge deve estar instalado no computador destino")
         print("- ChromeDriver será baixado automaticamente pelo Selenium")
+        print()
+        print("📋 Automações incluídas:")
+        print("1. Adicionar Carros ao Grupo de Veículos")
+        print("2. Remover Carros do Grupo de Veículos")
+        print("3. Remover Unidades do Billing")
+        print("4. Remover Carros do QTGO")
         
     else:
         print("❌ Falha no build. Verifique os erros acima.")

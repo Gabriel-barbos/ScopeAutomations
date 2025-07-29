@@ -1,0 +1,8 @@
+IDs que não possuem contratos ativos:
+==================================================
+Data/Hora: 28/07/2025 21:45:56
+Total de IDs sem contratos ativos: 3
+
+ 1. 865083039257324
+ 2. 865083031657307
+ 3. 862520061592352

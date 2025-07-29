@@ -34,6 +34,7 @@ class ScopeBillingAutomation:
         self.termination_date = None
         self.total_contracts_terminated = 0
         self.error_ids = []  # Lista para armazenar IDs que deram erro
+        self.no_active_contracts_ids = []  # Lista para IDs sem contratos ativos
         
     def setup_driver(self):
         """Cria uma nova sessão do Chrome"""
@@ -455,7 +456,7 @@ class ScopeBillingAutomation:
                 
                 if not active_contracts:
                     if contracts_terminated == 0:
-                        logger.warning(f"❌ Nenhum contrato ATIVO encontrado para {equipment_id}")
+                        logger.info(f"ℹ️ Nenhum contrato ATIVO encontrado para {equipment_id}")
                         logger.info("💡 Isso pode significar que:")
                         logger.info("   • Todos os contratos já estão inativos/cancelados")
                         logger.info("   • O ID do equipamento não existe")
@@ -465,13 +466,11 @@ class ScopeBillingAutomation:
                         logger.info("Executando debug da tabela para análise...")
                         self.debug_table_structure()
                         
-                        # Adicionar ID à lista de erros
-                        self.error_ids.append(equipment_id)
+                        # Adicionar ID à lista de IDs sem contratos ativos
+                        self.no_active_contracts_ids.append(equipment_id)
                         
-                        # Perguntar se deve continuar ou pular
-                        response = input(f"\nNenhum contrato ativo encontrado para {equipment_id}. Continuar para próximo? (s/n): ")
-                        if response.lower() != 's':
-                            return False
+                        # Continuar automaticamente sem interromper a lista
+                        logger.info(f"⏭️ Continuando para o próximo equipamento...")
                         return True
                     else:
                         # Todos os contratos ativos foram processados
@@ -517,10 +516,8 @@ class ScopeBillingAutomation:
                 logger.info(f"🎉 Equipamento {equipment_id} processado com sucesso! ({contracts_terminated} contratos cancelados)")
                 return True
             else:
-                logger.warning(f"⚠️ Nenhum contrato foi cancelado para {equipment_id}")
-                if equipment_id not in self.error_ids:
-                    self.error_ids.append(equipment_id)
-                return False
+                logger.info(f"ℹ️ Nenhum contrato foi cancelado para {equipment_id}")
+                return True  # Mudança: retorna True mesmo sem cancelamentos para não interromper
             
         except Exception as e:
             logger.error(f"❌ Erro crítico ao processar equipamento {equipment_id}: {e}")
@@ -546,6 +543,7 @@ class ScopeBillingAutomation:
             self.get_termination_date()
             
             logger.info(f"Iniciando processamento de {len(equipment_ids)} equipamentos")
+            logger.info("ℹ️ MODO AUTOMÁTICO: O processo continuará automaticamente mesmo quando não encontrar contratos ativos")
             
             # Processar cada equipamento
             for i, equipment_id in enumerate(equipment_ids, 1):
@@ -554,8 +552,8 @@ class ScopeBillingAutomation:
                     success = self.process_equipment(equipment_id)
                     
                     if not success:
-                        # Perguntar se deve continuar em caso de erro
-                        response = input(f"Erro ao processar {equipment_id}. Continuar? (s/n): ")
+                        # Perguntar se deve continuar em caso de erro crítico
+                        response = input(f"Erro crítico ao processar {equipment_id}. Continuar? (s/n): ")
                         if response.lower() != 's':
                             break
                     
@@ -588,18 +586,43 @@ class ScopeBillingAutomation:
         logger.info("🎉 RELATÓRIO FINAL DA AUTOMAÇÃO:")
         logger.info("="*60)
         logger.info(f"📋 Total de equipamentos processados: {len(equipment_ids)}")
-        logger.info(f"✅ Equipamentos com sucesso: {self.processed_count}")
-        logger.info(f"❌ Equipamentos com erro: {self.error_count}")
+        logger.info(f"✅ Equipamentos com contratos cancelados: {self.processed_count}")
+        logger.info(f"ℹ️ Equipamentos sem contratos ativos: {len(self.no_active_contracts_ids)}")
+        logger.info(f"❌ Equipamentos com erro crítico: {self.error_count}")
         logger.info(f"🎯 Total de contratos cancelados: {self.total_contracts_terminated}")
         logger.info(f"📅 Data de terminação usada: {self.termination_date}")
         
         success_rate = (self.processed_count / len(equipment_ids)) * 100 if equipment_ids else 0
-        logger.info(f"📊 Taxa de sucesso: {success_rate:.1f}%")
+        logger.info(f"📊 Taxa de cancelamento: {success_rate:.1f}%")
         
-        # Mostrar lista de IDs com erro
+        # Mostrar lista de IDs sem contratos ativos
+        if self.no_active_contracts_ids:
+            logger.info("\n" + "="*60)
+            logger.info("ℹ️ LISTA DE IDs SEM CONTRATOS ATIVOS:")
+            logger.info("="*60)
+            for i, no_contract_id in enumerate(self.no_active_contracts_ids, 1):
+                logger.info(f"{i:2d}. {no_contract_id}")
+            logger.info("="*60)
+            
+            # Salvar lista de IDs sem contratos ativos em arquivo
+            try:
+                no_contracts_filename = f"ids_sem_contratos_ativos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                with open(no_contracts_filename, 'w', encoding='utf-8') as f:
+                    f.write("IDs que não possuem contratos ativos:\n")
+                    f.write("="*50 + "\n")
+                    f.write(f"Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
+                    f.write(f"Total de IDs sem contratos ativos: {len(self.no_active_contracts_ids)}\n\n")
+                    for i, no_contract_id in enumerate(self.no_active_contracts_ids, 1):
+                        f.write(f"{i:2d}. {no_contract_id}\n")
+                
+                logger.info(f"💾 Lista de IDs sem contratos ativos salva em: {no_contracts_filename}")
+            except Exception as e:
+                logger.error(f"Erro ao salvar arquivo de IDs sem contratos: {e}")
+        
+        # Mostrar lista de IDs com erro crítico
         if self.error_ids:
             logger.info("\n" + "="*60)
-            logger.info("❌ LISTA DE IDs COM ERRO:")
+            logger.info("❌ LISTA DE IDs COM ERRO CRÍTICO:")
             logger.info("="*60)
             for i, error_id in enumerate(self.error_ids, 1):
                 logger.info(f"{i:2d}. {error_id}")
@@ -607,20 +630,26 @@ class ScopeBillingAutomation:
             
             # Salvar lista de erros em arquivo de texto
             try:
-                error_filename = f"ids_com_erro_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+                error_filename = f"ids_com_erro_critico_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
                 with open(error_filename, 'w', encoding='utf-8') as f:
-                    f.write("IDs que apresentaram erro durante o processamento:\n")
+                    f.write("IDs que apresentaram erro crítico durante o processamento:\n")
                     f.write("="*50 + "\n")
                     f.write(f"Data/Hora: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
-                    f.write(f"Total de IDs com erro: {len(self.error_ids)}\n\n")
+                    f.write(f"Total de IDs com erro crítico: {len(self.error_ids)}\n\n")
                     for i, error_id in enumerate(self.error_ids, 1):
                         f.write(f"{i:2d}. {error_id}\n")
                 
-                logger.info(f"💾 Lista de erros salva em: {error_filename}")
+                logger.info(f"💾 Lista de erros críticos salva em: {error_filename}")
             except Exception as e:
                 logger.error(f"Erro ao salvar arquivo de erros: {e}")
-        else:
-            logger.info("\n🎉 Nenhum ID apresentou erro!")
+        
+        # Resumo final
+        if not self.no_active_contracts_ids and not self.error_ids:
+            logger.info("\n🎉 Todos os equipamentos foram processados com sucesso!")
+        elif self.no_active_contracts_ids and not self.error_ids:
+            logger.info("\n✅ Processamento concluído! Alguns equipamentos não tinham contratos ativos.")
+        elif self.error_ids:
+            logger.info("\n⚠️ Processamento concluído com alguns erros críticos.")
         
         logger.info("="*60)
 
@@ -636,6 +665,7 @@ def main():
     print("2. Faça login no sistema Scope Billing")
     print("3. Pressione Enter para continuar")
     print("4. Configure os IDs e data de terminação")
+    print("5. O processo continuará automaticamente")
     print("="*50)
     
     # Criar instância da automação

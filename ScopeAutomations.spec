@@ -10,6 +10,8 @@ a = Analysis(
         ('AdicionarGrupo.xlsx', '.'),
         ('RemoverGrupo.xlsx', '.'),
         ('ID_billing.xlsx', '.'),
+        ('QTGO_ID.xlsx', '.'),
+        ('qtgo_automation.py', '.'),
     ],
     hiddenimports=[
         'selenium',
@@ -26,7 +28,8 @@ a = Analysis(
         'xlsxwriter',
         'add_automation',
         'remove_automation',
-        'billing_automation'
+        'billing_automation',
+        'qtgo_automation'
     ],
     hookspath=[],
     hooksconfig={},
