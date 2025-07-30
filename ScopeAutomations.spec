@@ -12,6 +12,8 @@ a = Analysis(
         ('ID_billing.xlsx', '.'),
         ('QTGO_ID.xlsx', '.'),
         ('qtgo_automation.py', '.'),
+        ('setup_automation.py', '.'),
+        ('odometer_setup.py', '.'),
     ],
     hiddenimports=[
         'selenium',
@@ -29,7 +31,9 @@ a = Analysis(
         'add_automation',
         'remove_automation',
         'billing_automation',
-        'qtgo_automation'
+        'qtgo_automation',
+        'setup_automation',
+        'odometer_setup'
     ],
     hookspath=[],
     hooksconfig={},

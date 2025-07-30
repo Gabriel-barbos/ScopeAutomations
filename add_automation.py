@@ -603,7 +603,7 @@ class CarAdditionAutomation:
         Processa todos os chassis dividindo em lotes de 60
         """
         total_chassis = len(chassis_list)
-        tamanho_lote = 10
+        tamanho_lote = 50
         numero_lote = 1
         
         # Dividir chassis em lotes

@@ -114,7 +114,14 @@ def adicionar_funcao_main(nome_arquivo):
 
 def verificar_estrutura_arquivos():
     """Verifica a estrutura atual dos arquivos"""
-    arquivos = ['add_automation.py', 'remove_automation.py', 'billing_automation.py']
+    # ATUALIZADO: Adicionados os novos arquivos de automação
+    arquivos = [
+        'add_automation.py', 
+        'remove_automation.py', 
+        'billing_automation.py',
+        'setup_automation.py',      # NOVO
+        'odometer_setup.py'         # NOVO
+    ]
     
     print("🔍 VERIFICANDO ESTRUTURA DOS ARQUIVOS:")
     print("-" * 50)
@@ -126,11 +133,14 @@ def verificar_estrutura_arquivos():
             
             tem_main = 'def main():' in conteudo
             tem_if_name = 'if __name__ == "__main__":' in conteudo
+            tem_pandas = 'import pandas' in conteudo or 'from pandas' in conteudo
             
             print(f"\n📄 {arquivo}:")
             print(f"   ✅ Existe" if Path(arquivo).exists() else "   ❌ Não existe")
             print(f"   ✅ Tem função main()" if tem_main else "   ❌ Sem função main()")
             print(f"   ✅ Tem if __name__" if tem_if_name else "   ❌ Sem if __name__")
+            if tem_pandas:
+                print(f"   📊 Usa pandas")
             
             if not tem_main:
                 print(f"   ⚠️  Precisa ser modificado")
@@ -164,8 +174,14 @@ def main():
     print("\n🔧 MODIFICANDO ARQUIVOS:")
     print("-" * 30)
     
-    # Modifica cada arquivo
-    arquivos = ['add_automation.py', 'remove_automation.py', 'billing_automation.py']
+    # ATUALIZADO: Modifica cada arquivo incluindo os novos
+    arquivos = [
+        'add_automation.py', 
+        'remove_automation.py', 
+        'billing_automation.py',
+        'setup_automation.py',      # NOVO
+        'odometer_setup.py'         # NOVO
+    ]
     sucesso = 0
     
     for arquivo in arquivos:

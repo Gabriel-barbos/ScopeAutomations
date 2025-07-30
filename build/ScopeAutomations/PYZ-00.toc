@@ -1184,6 +1184,7 @@
   ('numpy.version',
    'C:\\Users\\Weback\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python312\\site-packages\\numpy\\version.py',
    'PYMODULE'),
+  ('odometer_setup', 'C:\\ScopeAutomations\\odometer_setup.py', 'PYMODULE'),
   ('opcode',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\\Lib\\opcode.py',
@@ -2973,6 +2974,7 @@
   ('selenium.webdriver.wpewebkit.webdriver',
    'C:\\Users\\Weback\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python312\\site-packages\\selenium\\webdriver\\wpewebkit\\webdriver.py',
    'PYMODULE'),
+  ('setup_automation', 'C:\\ScopeAutomations\\setup_automation.py', 'PYMODULE'),
   ('shlex',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\\Lib\\shlex.py',

@@ -46,6 +46,8 @@ a = Analysis(
         ('ID_billing.xlsx', '.'),
         ('QTGO_ID.xlsx', '.'),
         ('qtgo_automation.py', '.'),
+        ('setup_automation.py', '.'),
+        ('odometer_setup.py', '.'),
     ],
     hiddenimports=[
         'selenium',
@@ -63,7 +65,9 @@ a = Analysis(
         'add_automation',
         'remove_automation',
         'billing_automation',
-        'qtgo_automation'
+        'qtgo_automation',
+        'setup_automation',
+        'odometer_setup'
     ],
     hookspath=[],
     hooksconfig={},
@@ -112,12 +116,17 @@ def verificar_arquivos():
         'add_automation.py',
         'remove_automation.py',
         'billing_automation.py',
-        'qtgo_automation.py',  # Novo arquivo adicionado
+        'qtgo_automation.py',
+        'setup_automation.py',       # Nova automação
+        'odometer_setup.py',         # Nova automação
         'AdicionarGrupo.xlsx',
         'RemoverGrupo.xlsx', 
         'ID_billing.xlsx',
-        'QTGO_ID.xlsx'  # Nova planilha
+        'QTGO_ID.xlsx'
     ]
+    
+    # Verificar se existem planilhas adicionais para as novas automações
+    # Adicione aqui se houver planilhas específicas para setup_automation ou odometer_setup
     
     arquivos_faltando = []
     for arquivo in arquivos_necessarios:
@@ -204,7 +213,7 @@ def main():
     # Confirmar build
     print("🚀 Pronto para gerar o executável!")
     print("Isso irá:")
-    print("- Incluir todos os scripts Python (4 automações)")
+    print("- Incluir todos os scripts Python (6 automações)")
     print("- Incluir todas as planilhas Excel")
     print("- Criar um executável único")
     print("- Gerar arquivo .bat para execução")
@@ -243,6 +252,8 @@ def main():
         print("2. Remover Carros do Grupo de Veículos")
         print("3. Remover Unidades do Billing")
         print("4. Remover Carros do QTGO")
+        print("5. Setup Automation")
+        print("6. Odometer Setup")
         
     else:
         print("❌ Falha no build. Verifique os erros acima.")
